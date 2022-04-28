@@ -63,12 +63,12 @@ const inputClosePin = document.querySelector('.form__input--pin');
 
 
 
-const displayMovements = function(movements){
+const displayMovements = function(movements,sort = false){
  containerMovements.innerHTML =' '
 
+const movs = sort? movements.slice().sort((a,b) => a - b) : movements;
 
-
-   movements.forEach(function(mov,i){
+   movs.forEach(function(mov,i){
 
     const type = mov > 0 ? 'deposit': 'withdrawal';
 
@@ -84,119 +84,155 @@ const displayMovements = function(movements){
    });
 }
 
-displayMovements(account1.movements)
-/////////////////////////////////////////////////
-/////////////////////////////////////////////////
-// LECTURES
 
 
-//const movements = [200, 450, -400, 3000, -650, -130, 70, 1300];
-
-/////////////////////////////////////////////////
-
-// let arr = ['a','b','c','d','e'];
-
-// console.log(arr.slice(2))
-// console.log(arr.slice(2,4))
-// console.log(arr.slice(-1));
-// console.log(arr.slice(2,-1));
-// console.log(arr.slice());
-// console.log([...arr]);
+const calcDisplayBalance = function(acc){
+  acc.balance = acc.movements.reduce((acc, mov) => acc + mov,0);
+ 
+  labelBalance.textContent = `${acc.balance}£`
+} 
 
 
-// //SPLICE
 
-// //console.log(arr.splice(2));
-// console.log(arr)
-// arr.splice(-1);
+const calcDisplaySummary = function(acc){
+  const incomes = acc.movements
+  .filter(mov => mov > 0)
+  .reduce((acc, mov) => acc + mov, 0);
+  labelSumIn.textContent = ` ${incomes}£`
 
+  const out = acc.movements
+  .filter(mov => mov < 0)
+  .reduce((acc, mov) => acc + mov, 0)
+  labelSumOut.textContent =`${Math.abs(out)}£`
 
-// //REVERSE
+  const interests = acc.movements
+  .filter(mov => mov > 0)
+  .map(deposit => (deposit * acc.interestRate) / 100)
+  .filter((int, i, arr) =>{
+    return int >= 1;
+  })
 
-
-//  arr = ['a','b','c','d','e'];
-//  const arr2= ['j','i','h','g','f'];
-
-//  console.log(arr2.reverse());
-//  console.log(arr2)
-
-//  //CONCAT
-
-//  const letters = arr.concat(arr2)
-//  console.log(letters)
-
-//  console.log([...arr,...arr2])
-
-//  //JOIN
-
-//  console.log([letters.join('-')])
+  .reduce((acc,int) => acc + int,0);
+  labelSumInterest.textContent = `${interests}£`
 
 
-//  //AT
-//  const arr3 = [23,11,64];
-//  console.log(arr3[0])
-//  console.log(arr3.at(0))
-
-//  //Getting the last element traditional
-
-//  console.log(arr3[arr3.length-1])
-//  console.log(arr3.slice(-1)[0])
-
-//  //using at
-
-//  console.log(arr3.at(-1))
-//  console.log('jemima'.at(2))
-
-//  //FOR EACH
+}
 
 
-// const movements = [200, 450, -400, 3000, -650, -130, 70, 1300];
 
-// for(const movement of movements){
-//   if(movement > 0){
-//     console.log(`You deposited ${movement}`);
-//   }else{
-//     console.log(`you withdrew ${Math.abs(movement)}`)
-//   }
-// }
+const createUserNames = function(accs){
+  accs.forEach(function(acc){
+     acc.username = acc.owner
+  .toLowerCase()
+  .split(' ')
+  .map(name => name[0])
+  .join('');
+ 
+  });
+  
+};
 
-//  for( const [i, movement] of movements.entries()){
-//    if(movement > 0){
-//     console.log(`Movements ${i + 1}: You deposited ${movement}`);
-//   }else{
-//     console.log(`Movements ${i + 1}: You withdrew ${Math.abs(movement)}`)
-//   }
-//  }
+createUserNames(accounts)
 
+const updateUI = function(acc){
+      displayMovements(acc.movements);
 
-// console.log('--------FOR EACH-------------')
+      calcDisplayBalance(acc);
 
-// movements.forEach(function(mov,i,arr){
-//   if(mov > 0){
-//     console.log(`Movements ${i + 1}: You deposited ${mov}`);
-//   }else{
-//     console.log(`Movements ${i + 1}: You withdrew ${Math.abs(mov)}`)
-//   }
-// })
+      calcDisplaySummary(acc);
+}
 
 
-// const currencies = new Map([
-//   ['USD', 'United States dollar'],
-//   ['EUR', 'Euro'],
-//   ['GBP', 'Pound sterling'],
-// ]);
+// event handler
+
+let currentAccount;
+
+
+btnLogin.addEventListener('click',function(e){
+  //prevent form from submitting
+  e.preventDefault();
+
+  currentAccount =accounts.find(
+    acc => acc.username === inputLoginUsername.value
+    );
+    
+
+    if(currentAccount?.pin === Number(inputLoginPin.value)){
+      // displayUI and message
+      labelWelcome.textContent = `Welcome Back, ${currentAccount.owner.split(' ')[0]
+    }`;
+
+      containerApp.style.opacity = 100;
+      
+      // Clear input fields
+      inputLoginUsername.value = inputLoginPin.value =' ';
+
+      inputLoginPin.blur();
+     //update UI
+      updateUI(currentAccount)
+    }
+  
+});
+
+btnTransfer.addEventListener('click', function(e){
+
+  e.preventDefault();
+
+  const amount = Number(inputTransferAmount.value)
+  const receiverAcc = accounts.find(acc => acc.username ===inputTransferTo.value
+    );
+  inputTransferAmount.value = inputTransferTo.value = '';
+
+   if(amount > 0 && receiverAcc && currentAccount.balance >= amount && receiverAcc?.username !== currentAccount.username){
+      currentAccount.movements.push(-amount);
+      receiverAcc.movements.push(amount)
+
+      //update UI
+      updateUI(currentAccount)
+    }
+
+
+});
+
+btnLoan.addEventListener('click',function(e){
+  e.preventDefault();
+
+  const amount = Number(inputLoanAmount.value);
+
+  if(amount > 0 && currentAccount.movements.some(mov => mov >= amount * 0.1)){
+  //Add movements
+
+  currentAccount.movements.push(amount)
+  // update UI
+  updateUI(currentAccount);
+  }
+    inputCloseUsername.value = inputClosePin.value = ' ';
+});
+
+
+btnClose.addEventListener('click',function(e){
+
+  e.preventDefault();
+
   
 
-// //MAP
-// currencies.forEach(function(value, key, map){
-//   console.log(`${key}: ${value}`)
-// })
+  if(inputCloseUsername.value ===currentAccount.user && Number(inputClosePin.value) === currentAccount.pin){
+    const index = accounts.findIndex(acc => acc.username === currentAccount.username)
+    console.log(index);
+    // Delete account
+    accounts.splice(index,1);
 
-// //SET
+    // Hide UI
+    containerApp.style.opacity = 0;
+  }
+  inputCloseUsername.value = inputClosePin.value = ' ';
+})
 
-// const currenciesSet  = new Set(['USD','GBP','USD','EUR','EUR'])
-// console.log(currenciesSet)
+let sorted = false;
+btnSort.addEventListener('click',function(e){
+  e.preventDefault();
+  displayMovements(currentAccount.movements, !sorted);
+  sorted = !sorted;
 
-// currenciesSet.forEach(function(value, _,map){
-//    console.log(`${value}: ${value}`)
-// })
+});
+
